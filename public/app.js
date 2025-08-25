@@ -9,6 +9,10 @@ const calTitle = $('#cal-title');
 const calPrev = $('#cal-prev');
 const calNext = $('#cal-next');
 const calEl = $('#calendar');
+const waveCanvas = $('#wave-canvas');
+const wave7 = $('#wave-7');
+const wave30 = $('#wave-30');
+const wave90 = $('#wave-90');
 
 function showToast(msg) {
   toast.textContent = msg;
@@ -127,10 +131,12 @@ employeeIdInput.addEventListener('input', () => {
   updateSubmitState();
   refresh(employeeIdInput.value.trim());
   renderCalendar();
+  renderWave();
 });
 
 updateSubmitState();
 refresh(employeeIdInput.value.trim());
+renderWave();
 
 // ===== Calendar =====
 let currentMonth = new Date(); // today
@@ -207,3 +213,101 @@ calPrev.addEventListener('click', () => { currentMonth = addMonths(currentMonth,
 calNext.addEventListener('click', () => { currentMonth = addMonths(currentMonth, 1); renderCalendar(); });
 
 renderCalendar();
+
+// ===== Wave (emotion over time) =====
+let waveDays = 30;
+wave7?.addEventListener('click', ()=>{ waveDays = 7; setWaveButtons(); renderWave(); });
+wave30?.addEventListener('click', ()=>{ waveDays = 30; setWaveButtons(); renderWave(); });
+wave90?.addEventListener('click', ()=>{ waveDays = 90; setWaveButtons(); renderWave(); });
+
+function setWaveButtons(){
+  [wave7, wave30, wave90].forEach(b=> b && b.classList.remove('btn--filled'));
+  if (waveDays === 7) wave7?.classList.add('btn--filled');
+  if (waveDays === 30) wave30?.classList.add('btn--filled');
+  if (waveDays === 90) wave90?.classList.add('btn--filled');
+}
+
+function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function endOfDay(d){ const x = new Date(d); x.setHours(23,59,59,999); return x; }
+
+async function renderWave(){
+  if (!waveCanvas) return;
+  const employeeId = employeeIdInput.value.trim();
+  const now = new Date();
+  const from = startOfDay(new Date(now.getTime()- (waveDays-1)*86400000));
+  const to = endOfDay(now);
+  let rows = [];
+  try{
+    const res = await fetch(`/api/logs?employeeId=${encodeURIComponent(employeeId)}&from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
+    const json = await res.json();
+    if (json.ok) rows = json.rows || [];
+  }catch(e){ console.error(e); }
+  drawWave(waveCanvas, rows, from, to);
+}
+
+function drawWave(canvas, rows, from, to){
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 600;
+  const cssHeight = 260;
+  canvas.width = Math.floor(cssWidth * dpr);
+  canvas.height = Math.floor(cssHeight * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssWidth,cssHeight);
+
+  const styles = getComputedStyle(document.documentElement);
+  const grid = styles.getPropertyValue('--grid').trim() || '#e5e7eb';
+  const text = styles.getPropertyValue('--muted').trim() || '#6b7280';
+  const inColor = styles.getPropertyValue('--in-color').trim() || '#22c55e';
+  const outColor = styles.getPropertyValue('--out-color').trim() || '#3b82f6';
+
+  const pad = { left: 36, right: 12, top: 12, bottom: 24 };
+  const W = cssWidth - pad.left - pad.right;
+  const H = cssHeight - pad.top - pad.bottom;
+
+  // axes/grid
+  ctx.strokeStyle = grid; ctx.fillStyle = text; ctx.lineWidth = 1;
+  for (let v=1; v<=5; v++){
+    const y = pad.top + H - (v-1) * (H/4);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(cssWidth - pad.right, y); ctx.stroke();
+    ctx.fillText(String(v), 8, y+3);
+  }
+
+  // no data
+  if (!rows || rows.length === 0){
+    ctx.fillStyle = text; ctx.textAlign = 'center';
+    ctx.fillText('データがありません', cssWidth/2, cssHeight/2);
+    return;
+  }
+
+  const t0 = from.getTime();
+  const t1 = to.getTime();
+  function xFor(t){ if (t1===t0) return pad.left; return pad.left + ( (t - t0) / (t1 - t0) ) * W; }
+  function yFor(val){ return pad.top + H - ( (val-1) / 4 ) * H; }
+
+  const sorted = rows.slice().sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
+
+  // unified line (all events)
+  ctx.strokeStyle = '#d1d5db'; // light gray line for overall trend
+  ctx.lineWidth = 2; ctx.beginPath();
+  sorted.forEach((r,i)=>{
+    const t = new Date(r.created_at).getTime();
+    const x = xFor(t); const y = yFor(Number(r.emotion));
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // points by type
+  function drawPoints(type, color){
+    ctx.fillStyle = color; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    sorted.filter(r=>r.event_type===type).forEach(r=>{
+      const t = new Date(r.created_at).getTime();
+      const x = xFor(t); const y = yFor(Number(r.emotion));
+      ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    });
+  }
+  drawPoints('in', inColor);
+  drawPoints('out', outColor);
+}
+
+window.addEventListener('resize', ()=> renderWave());

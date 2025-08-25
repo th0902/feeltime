@@ -9,6 +9,9 @@
   --primary-fg:#4a2a00;  /* amber deep */
   --border:#e5e7eb;      /* gray-200 */
   --focus:#fb923c;       /* orange-400 */
+  --in-color:#22c55e;    /* green-500 */
+  --out-color:#3b82f6;   /* blue-500 */
+  --grid:#e5e7eb;        /* light grid */
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -104,3 +107,11 @@ input:focus, textarea:focus, button:focus{outline:2px solid var(--focus);outline
 .cal-badge{display:inline-flex;align-items:center;justify-content:center;min-width:1.6em;height:1.6em;border-radius:999px;border:1px solid var(--border);font-size:12px}
 .badge-in{background:rgba(34,197,94,.15)}
 .badge-out{background:rgba(59,130,246,.15)}
+
+/* Chart */
+.chart{width:100%;overflow:hidden}
+.chart canvas{width:100%;display:block}
+.chart-legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.legend-item{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:999px;display:inline-block;border:1px solid var(--border)}
+.legend-range{display:inline-flex;gap:6px;margin-left:auto}

@@ -76,6 +76,24 @@
           <!-- filled by app.js -->
         </div>
       </section>
+
+      <section class="panel md-card" id="wave-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
+          <h2 style="margin:0">感情の波</h2>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot" style="background:var(--in-color)"></span>出勤</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--out-color)"></span>退勤</span>
+            <div class="legend-range">
+              <button id="wave-7" class="btn">7日</button>
+              <button id="wave-30" class="btn btn--filled">30日</button>
+              <button id="wave-90" class="btn">90日</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart">
+          <canvas id="wave-canvas" height="260"></canvas>
+        </div>
+      </section>
     </main>
 
     <div id="toast" class="toast md-card" role="status" aria-live="polite"></div>
