@@ -1,0 +1,27 @@
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+package-lock.json
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Coverage/Build
+coverage/
+dist/
+build/
+
+# Data
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+

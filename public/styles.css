@@ -1,0 +1,106 @@
+:root{
+  /* Warm light theme */
+  --bg:#f8f5f0;          /* warm off-white */
+  --panel:#fffaf5;       /* warm panel */
+  --surface:#ffffff;     /* cards/inputs */
+  --text:#1f2937;        /* gray-800 */
+  --muted:#6b7280;       /* gray-500 */
+  --primary:#f59e0b;     /* amber-500 */
+  --primary-fg:#4a2a00;  /* amber deep */
+  --border:#e5e7eb;      /* gray-200 */
+  --focus:#fb923c;       /* orange-400 */
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: Roboto, ui-sans-serif, system-ui, -apple-system, Segoe UI, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  background:var(--bg);
+  color:var(--text);
+}
+.container{max-width:960px;margin:0 auto;padding:16px}
+header h1{margin:0;display:flex;gap:8px;align-items:center}
+.muted{color:var(--muted)}
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:16px;
+}
+/* Material-like card and inputs */
+.md-card{box-shadow:0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.2)}
+.md-input{transition:border-color .2s, box-shadow .2s}
+.md-input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.2)}
+/* Material symbols */
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24}
+label{display:block;margin-bottom:6px}
+input, textarea{
+  width:100%;
+  background:var(--surface);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:10px 12px;
+}
+input:focus, textarea:focus, button:focus{outline:2px solid var(--focus);outline-offset:2px}
+
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:800px){.grid{grid-template-columns:1fr 1fr}}
+
+.emotions{display:flex;gap:8px;margin:12px 0}
+.emoji{
+  font-size:24px;
+  line-height:1;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+  cursor:pointer;
+}
+.emoji.selected{border-color:var(--focus);box-shadow:0 0 0 2px rgba(56,189,248,.3) inset}
+
+/* Material-like buttons */
+.btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;cursor:pointer;
+  padding:10px 16px;border-radius:999px;border:1px solid var(--border);background:var(--surface);
+  transition:filter .2s, box-shadow .2s, opacity .2s}
+.btn--filled{background:var(--primary);color:#fff;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.btn--filled:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:24px;min-width:240px;max-width:90vw;
+  padding:12px 16px;border-radius:10px;
+  background:var(--panel);color:var(--text);border:1px solid var(--border);
+  opacity:0;transition:opacity .2s ease, bottom .2s ease;pointer-events:none
+}
+.toast.show{opacity:1;bottom:32px}
+
+.recent{list-style:none;padding:0;margin:0}
+.recent li{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border)}
+.badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--border)}
+.summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.summary .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+
+.app-title .material-symbols-outlined{vertical-align:middle}
+
+/* Calendar */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-title{margin:0;text-align:center}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-weekday{font-size:12px;color:var(--muted);text-align:center;padding:4px 0}
+.cal-day{min-height:90px;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--surface);display:flex;flex-direction:column}
+.cal-day .date{font-size:12px;color:var(--muted)}
+.cal-day.today{outline:2px solid var(--focus);outline-offset:2px}
+.cal-day.out{opacity:.5}
+.cal-logs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.cal-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:999px;padding:2px 6px;font-size:12px}
+.chip-in{background:rgba(34,197,94,.15)}
+.chip-out{background:rgba(59,130,246,.15)}
+/* time rows */
+.cal-line{display:flex;gap:6px;align-items:center;font-size:12px}
+.cal-time{color:var(--muted)}
+.cal-badge{display:inline-flex;align-items:center;justify-content:center;min-width:1.6em;height:1.6em;border-radius:999px;border:1px solid var(--border);font-size:12px}
+.badge-in{background:rgba(34,197,94,.15)}
+.badge-out{background:rgba(59,130,246,.15)}

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FeelTime | 勤怠 + 感情ログ</title>
+    <!-- Material fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:FILL@0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="container">
+      <h1 class="app-title"><span class="material-symbols-outlined">sentiment_satisfied</span> FeelTime</h1>
+      <p class="muted">出勤・退勤時に気持ちを記録</p>
+    </header>
+    <main class="container">
+      <section class="panel md-card">
+        <label for="employeeId">社員ID</label>
+        <input id="employeeId" class="md-input" type="text" placeholder="例: E12345" />
+        <small class="muted">ローカル保存されます</small>
+      </section>
+
+      <div class="grid">
+        <section class="panel md-card">
+          <h2>出勤（Clock In）</h2>
+          <div class="emotions" data-target="in">
+            <button class="emoji" data-v="1" aria-label="とても悪い">😡</button>
+            <button class="emoji" data-v="2" aria-label="悪い">😟</button>
+            <button class="emoji" data-v="3" aria-label="ふつう">😐</button>
+            <button class="emoji" data-v="4" aria-label="良い">🙂</button>
+            <button class="emoji" data-v="5" aria-label="とても良い">😄</button>
+          </div>
+          <textarea id="note-in" class="md-input" rows="3" placeholder="ひとことメモ（任意）"></textarea>
+          <button id="submit-in" class="btn btn--filled" disabled>
+            <span class="material-symbols-outlined">check_circle</span>
+            出勤を記録
+          </button>
+        </section>
+
+        <section class="panel md-card">
+          <h2>退勤（Clock Out）</h2>
+          <div class="emotions" data-target="out">
+            <button class="emoji" data-v="1" aria-label="とても悪い">😡</button>
+            <button class="emoji" data-v="2" aria-label="悪い">😟</button>
+            <button class="emoji" data-v="3" aria-label="ふつう">😐</button>
+            <button class="emoji" data-v="4" aria-label="良い">🙂</button>
+            <button class="emoji" data-v="5" aria-label="とても良い">😄</button>
+          </div>
+          <textarea id="note-out" class="md-input" rows="3" placeholder="ひとことメモ（任意）"></textarea>
+          <button id="submit-out" class="btn btn--filled" disabled>
+            <span class="material-symbols-outlined">check_circle</span>
+            退勤を記録
+          </button>
+        </section>
+      </div>
+
+      <section class="panel md-card">
+        <h2>最近の記録</h2>
+        <div id="summary" class="summary"></div>
+        <ul id="recent" class="recent"></ul>
+      </section>
+
+      <section class="panel md-card">
+        <div class="cal-header">
+          <button id="cal-prev" class="btn" aria-label="前の月"><span class="material-symbols-outlined">chevron_left</span></button>
+          <h2 id="cal-title" class="cal-title"></h2>
+          <button id="cal-next" class="btn" aria-label="次の月"><span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
+        <div class="calendar" id="calendar">
+          <!-- filled by app.js -->
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast md-card" role="status" aria-live="polite"></div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+  </html>
