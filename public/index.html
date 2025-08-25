@@ -94,6 +94,27 @@
           <canvas id="wave-canvas" height="260"></canvas>
         </div>
       </section>
+
+      <section class="panel md-card" id="trends-panel">
+        <h2 style="margin-top:0">トレンド</h2>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <strong>曜日スコア</strong>
+              <select id="trend-days" class="md-input" style="width:auto;padding:6px 10px">
+                <option value="30" selected>直近30日</option>
+                <option value="60">直近60日</option>
+                <option value="90">直近90日</option>
+              </select>
+            </div>
+            <div id="weekday-trend" class="trend"></div>
+          </div>
+          <div style="flex:1;min-width:260px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><strong>週間スコア</strong></div>
+            <div id="weekly-trend" class="trend"></div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <div id="toast" class="toast md-card" role="status" aria-live="polite"></div>

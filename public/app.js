@@ -13,6 +13,9 @@ const waveCanvas = $('#wave-canvas');
 const wave7 = $('#wave-7');
 const wave30 = $('#wave-30');
 const wave90 = $('#wave-90');
+const trendDaysSel = $('#trend-days');
+const weekdayTrendEl = $('#weekday-trend');
+const weeklyTrendEl = $('#weekly-trend');
 
 function showToast(msg) {
   toast.textContent = msg;
@@ -132,11 +135,13 @@ employeeIdInput.addEventListener('input', () => {
   refresh(employeeIdInput.value.trim());
   renderCalendar();
   renderWave();
+  renderTrends();
 });
 
 updateSubmitState();
 refresh(employeeIdInput.value.trim());
 renderWave();
+renderTrends();
 
 // ===== Calendar =====
 let currentMonth = new Date(); // today
@@ -311,3 +316,65 @@ function drawWave(canvas, rows, from, to){
 }
 
 window.addEventListener('resize', ()=> renderWave());
+
+// ===== Trends (weekday / weekly) =====
+async function renderTrends(){
+  const employeeId = employeeIdInput.value.trim();
+  const days = Number(trendDaysSel?.value || 30);
+  let data = null;
+  try{
+    const res = await fetch(`/api/trends?employeeId=${encodeURIComponent(employeeId)}&days=${days}`);
+    data = await res.json();
+  }catch(e){ console.error(e); }
+  if (!data || !data.ok) return;
+  renderWeekdayTrend(data.weekday);
+  renderWeeklyTrend(data.weekly);
+}
+
+trendDaysSel?.addEventListener('change', ()=> renderTrends());
+
+function toScore(avg){ if (avg == null) return 0; return Math.round(((avg - 1) / 4) * 100); }
+function fmtAvg(avg){ return avg == null ? '-' : (Math.round(avg*10)/10).toFixed(1); }
+
+function renderWeekdayTrend(rows){
+  if (!weekdayTrendEl) return;
+  const labels = ['日','月','火','水','木','金','土'];
+  // 表示は月〜日の順に
+  const order = [1,2,3,4,5,6,0];
+  weekdayTrendEl.innerHTML = order.map(dow => {
+    const r = rows.find(x => Number(x.dow) === dow) || { in:{avg:null,count:0}, out:{avg:null,count:0} };
+    const sIn = toScore(r.in.avg); const sOut = toScore(r.out.avg);
+    return `
+      <div class="trend-row">
+        <div class="trend-label">${labels[dow]}</div>
+        <div class="trend-bar"><div class="fill fill-in" style="width:${sIn}%"></div></div>
+        <div class="trend-meta">出勤 ${fmtAvg(r.in.avg)} (${r.in.count||0})</div>
+      </div>
+      <div class="trend-row">
+        <div class="trend-label"></div>
+        <div class="trend-bar"><div class="fill fill-out" style="width:${sOut}%"></div></div>
+        <div class="trend-meta">退勤 ${fmtAvg(r.out.avg)} (${r.out.count||0})</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderWeeklyTrend(rows){
+  if (!weeklyTrendEl) return;
+  const items = rows.slice(-8); // last 8 weeks
+  weeklyTrendEl.innerHTML = items.map(r => {
+    // 重み付き平均
+    const cntIn = r.in.count || 0, cntOut = r.out.count || 0;
+    const total = cntIn + cntOut;
+    const avg = total ? ((cntIn*(r.in.avg||0) + cntOut*(r.out.avg||0)) / total) : null;
+    const score = toScore(avg);
+    const label = new Date(r.week_start).toLocaleDateString();
+    return `
+      <div class="trend-row">
+        <div class="trend-label" style="width:90px;text-align:left">${label}</div>
+        <div class="trend-bar"><div class="fill" style="background:linear-gradient(90deg, var(--in-color), var(--out-color)); width:${score}%"></div></div>
+        <div class="trend-meta">avg ${fmtAvg(avg)} (${total})</div>
+      </div>
+    `;
+  }).join('');
+}

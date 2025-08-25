@@ -105,6 +105,45 @@ function sqliteAdapter(db) {
       const rows = db.prepare(sql).all(...params);
       return rows.map(r => ({ ...r, emotion: Number(r.emotion) }));
     },
+    async getTrends({ employeeId, from, to }) {
+      const params = [employeeId];
+      let where = 'WHERE employee_id = ?';
+      if (from) { where += ' AND created_at >= ?'; params.push(from); }
+      if (to) { where += ' AND created_at <= ?'; params.push(to); }
+      const weekdaySql = `
+        SELECT strftime('%w', created_at) AS dow, event_type, COUNT(*) AS cnt, AVG(emotion) AS avg
+        FROM emotion_logs ${where}
+        GROUP BY dow, event_type
+        ORDER BY dow
+      `;
+      const weeklySql = `
+        SELECT strftime('%Y-W%W', created_at) AS yw,
+               date(created_at, 'weekday 1', '-7 days') AS week_start,
+               event_type, COUNT(*) AS cnt, AVG(emotion) AS avg
+        FROM emotion_logs ${where}
+        GROUP BY yw, week_start, event_type
+        ORDER BY week_start
+      `;
+      const weekdayRows = db.prepare(weekdaySql).all(...params);
+      const weeklyRows = db.prepare(weeklySql).all(...params);
+      // shape weekday
+      const weekday = Array.from({length:7}, (_,i)=>({ dow:i, in:{count:0,avg:null}, out:{count:0,avg:null} }));
+      for (const r of weekdayRows){
+        const d = Number(r.dow);
+        const key = r.event_type === 'in' ? 'in' : 'out';
+        weekday[d][key] = { count: Number(r.cnt), avg: r.avg !== null ? Number(r.avg) : null };
+      }
+      // shape weekly
+      const weeklyMap = new Map();
+      for (const r of weeklyRows){
+        const k = r.week_start;
+        if (!weeklyMap.has(k)) weeklyMap.set(k, { week_start: k, in:{count:0,avg:null}, out:{count:0,avg:null} });
+        const key = r.event_type === 'in' ? 'in' : 'out';
+        weeklyMap.get(k)[key] = { count: Number(r.cnt), avg: r.avg !== null ? Number(r.avg) : null };
+      }
+      const weekly = Array.from(weeklyMap.values()).sort((a,b)=> new Date(a.week_start) - new Date(b.week_start));
+      return { weekday, weekly };
+    },
   };
 }
 
@@ -151,6 +190,42 @@ function postgresAdapter(pool) {
       sql += ' ORDER BY created_at ASC';
       const { rows } = await pool.query(sql, params);
       return rows.map(r => ({ ...r, emotion: Number(r.emotion) }));
+    },
+    async getTrends({ employeeId, from, to }) {
+      const params = [employeeId];
+      let where = 'WHERE employee_id = $1';
+      if (from) { params.push(from); where += ` AND created_at >= $${params.length}`; }
+      if (to) { params.push(to); where += ` AND created_at <= $${params.length}`; }
+
+      const weekdaySql = `
+        SELECT EXTRACT(DOW FROM created_at)::int AS dow, event_type, COUNT(*) AS cnt, AVG(emotion) AS avg
+        FROM emotion_logs ${where}
+        GROUP BY dow, event_type
+        ORDER BY dow
+      `;
+      const weeklySql = `
+        SELECT date_trunc('week', created_at)::date AS week_start, event_type, COUNT(*) AS cnt, AVG(emotion) AS avg
+        FROM emotion_logs ${where}
+        GROUP BY week_start, event_type
+        ORDER BY week_start
+      `;
+      const weekdayRows = (await pool.query(weekdaySql, params)).rows;
+      const weeklyRows = (await pool.query(weeklySql, params)).rows;
+      const weekday = Array.from({length:7}, (_,i)=>({ dow:i, in:{count:0,avg:null}, out:{count:0,avg:null} }));
+      for (const r of weekdayRows){
+        const d = Number(r.dow);
+        const key = r.event_type === 'in' ? 'in' : 'out';
+        weekday[d][key] = { count: Number(r.cnt), avg: r.avg !== null ? Number(r.avg) : null };
+      }
+      const weeklyMap = new Map();
+      for (const r of weeklyRows){
+        const k = r.week_start; // already date
+        if (!weeklyMap.has(k)) weeklyMap.set(k, { week_start: k, in:{count:0,avg:null}, out:{count:0,avg:null} });
+        const key = r.event_type === 'in' ? 'in' : 'out';
+        weeklyMap.get(k)[key] = { count: Number(r.cnt), avg: r.avg !== null ? Number(r.avg) : null };
+      }
+      const weekly = Array.from(weeklyMap.values()).sort((a,b)=> new Date(a.week_start) - new Date(b.week_start));
+      return { weekday, weekly };
     },
   };
 }

@@ -126,6 +126,36 @@ app.get('/api/logs', async (req, res) => {
   }
 });
 
+const TrendsSchema = z.object({
+  employeeId: z.string().trim().min(1).max(64),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  days: z.coerce.number().int().min(1).max(365).optional(),
+});
+
+app.get('/api/trends', async (req, res) => {
+  try {
+    if (!db) db = await initDB();
+    const parsed = TrendsSchema.parse(req.query);
+    let from = parsed.from, to = parsed.to;
+    if (!from && !to && parsed.days){
+      const now = new Date();
+      const start = new Date(now.getTime() - (parsed.days-1)*24*60*60*1000);
+      start.setHours(0,0,0,0);
+      const end = new Date(now); end.setHours(23,59,59,999);
+      from = start.toISOString();
+      to = end.toISOString();
+    }
+    const result = await db.getTrends({ employeeId: parsed.employeeId, from, to });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    if (e?.issues) {
+      return res.status(400).json({ ok: false, error: 'validation_error', details: e.issues });
+    }
+    res.status(500).json({ ok: false, error: 'server_error', message: String(e?.message || e) });
+  }
+});
+
 // Serve index
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
