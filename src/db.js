@@ -50,8 +50,11 @@ export async function initDB() {
 }
 
 function sqliteAdapter(db) {
-  const insertStmt = db.prepare(
-    'INSERT INTO emotion_logs (id, employee_id, event_type, emotion, note, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
+  const insertStmtAuto = db.prepare(
+    'INSERT INTO emotion_logs (id, employee_id, event_type, emotion, note) VALUES (?, ?, ?, ?, ?)'
+  );
+  const insertStmtWith = db.prepare(
+    'INSERT INTO emotion_logs (id, employee_id, event_type, emotion, note, created_at) VALUES (?, ?, ?, ?, ?, ?)'
   );
   const selectSummaryBase = (
     'SELECT event_type, COUNT(*) as count, AVG(emotion) as avg_emotion' +
@@ -66,9 +69,13 @@ function sqliteAdapter(db) {
       db.pragma('quick_check');
       return { ok: true };
     },
-    async insertEmotionLog({ employeeId, type, emotion, note }) {
+    async insertEmotionLog({ employeeId, type, emotion, note, createdAt }) {
       const id = createId();
-      insertStmt.run(id, employeeId, type, emotion, note || null);
+      if (createdAt) {
+        insertStmtWith.run(id, employeeId, type, emotion, note || null, createdAt);
+      } else {
+        insertStmtAuto.run(id, employeeId, type, emotion, note || null);
+      }
       return { id };
     },
     async getSummary({ employeeId, from, to }) {
@@ -107,10 +114,15 @@ function postgresAdapter(pool) {
       await pool.query('SELECT 1');
       return { ok: true };
     },
-    async insertEmotionLog({ employeeId, type, emotion, note }) {
+    async insertEmotionLog({ employeeId, type, emotion, note, createdAt }) {
       const id = createId();
-      const sql = 'INSERT INTO emotion_logs (id, employee_id, event_type, emotion, note) VALUES ($1, $2, $3, $4, $5)';
-      await pool.query(sql, [id, employeeId, type, emotion, note || null]);
+      if (createdAt) {
+        const sql = 'INSERT INTO emotion_logs (id, employee_id, event_type, emotion, note, created_at) VALUES ($1, $2, $3, $4, $5, $6)';
+        await pool.query(sql, [id, employeeId, type, emotion, note || null, createdAt]);
+      } else {
+        const sql = 'INSERT INTO emotion_logs (id, employee_id, event_type, emotion, note) VALUES ($1, $2, $3, $4, $5)';
+        await pool.query(sql, [id, employeeId, type, emotion, note || null]);
+      }
       return { id };
     },
     async getSummary({ employeeId, from, to }) {

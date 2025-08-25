@@ -33,6 +33,8 @@
             <button class="emoji" data-v="5" aria-label="とても良い">😄</button>
           </div>
           <textarea id="note-in" class="md-input" rows="3" placeholder="ひとことメモ（任意）"></textarea>
+          <label for="dt-in" class="muted" style="margin-top:8px;display:block">日時（任意）</label>
+          <input id="dt-in" class="md-input" type="datetime-local" />
           <button id="submit-in" class="btn btn--filled" disabled>
             <span class="material-symbols-outlined">check_circle</span>
             出勤を記録
@@ -49,6 +51,8 @@
             <button class="emoji" data-v="5" aria-label="とても良い">😄</button>
           </div>
           <textarea id="note-out" class="md-input" rows="3" placeholder="ひとことメモ（任意）"></textarea>
+          <label for="dt-out" class="muted" style="margin-top:8px;display:block">日時（任意）</label>
+          <input id="dt-out" class="md-input" type="datetime-local" />
           <button id="submit-out" class="btn btn--filled" disabled>
             <span class="material-symbols-outlined">check_circle</span>
             退勤を記録

@@ -39,6 +39,7 @@ const ClockSchema = z.object({
   type: z.enum(['in', 'out']),
   emotion: z.number().int().min(1).max(5),
   note: z.string().max(1000).optional().or(z.literal('')),
+  createdAt: z.string().datetime().optional(),
 });
 
 app.post('/api/clock', async (req, res) => {
@@ -51,6 +52,7 @@ app.post('/api/clock', async (req, res) => {
       type: parsed.type,
       emotion: parsed.emotion,
       note,
+      createdAt: parsed.createdAt,
     });
     res.status(201).json({ ok: true, id: result.id });
   } catch (e) {

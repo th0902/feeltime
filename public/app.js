@@ -88,12 +88,19 @@ async function handleSubmit(type){
   const emotion = selected[type];
   if (!emotion){ showToast('感情アイコンを選択してください'); return; }
   const note = $('#note-' + type).value.trim();
+  const dtVal = $('#dt-' + type)?.value;
   try{
     const btn = type === 'in' ? submitIn : submitOut;
     btn.disabled = true;
-    await postJSON('/api/clock', { employeeId, type, emotion, note });
+    const payload = { employeeId, type, emotion, note };
+    if (dtVal) {
+      const iso = new Date(dtVal).toISOString();
+      payload.createdAt = iso;
+    }
+    await postJSON('/api/clock', payload);
     showToast(`${type === 'in' ? '出勤' : '退勤'}を記録しました`);
     $('#note-' + type).value = '';
+    if (dtVal) { $('#dt-' + type).value = ''; }
     selected[type] = null;
     document.querySelectorAll(`.emotions[data-target="${type}"] .emoji`).forEach(el => el.classList.remove('selected'));
     refresh(employeeId);
