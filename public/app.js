@@ -2,6 +2,7 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 const employeeIdInput = $('#employeeId');
+const departmentSelector = $('#department-selector');
 const toast = $('#toast');
 const submitIn = $('#submit-in');
 const submitOut = $('#submit-out');
@@ -16,6 +17,7 @@ const wave90 = $('#wave-90');
 const trendDaysSel = $('#trend-days');
 const weekdayTrendEl = $('#weekday-trend');
 const weeklyTrendEl = $('#weekly-trend');
+const dtInput = $('#dt');
 
 function showToast(msg) {
   toast.textContent = msg;
@@ -28,18 +30,15 @@ const KEY = 'feeltime.employeeId';
 employeeIdInput.value = localStorage.getItem(KEY) || '';
 employeeIdInput.addEventListener('change', () => localStorage.setItem(KEY, employeeIdInput.value.trim()));
 
-// Emotion selection logic
-const selected = { in: null, out: null };
-$$('.emotions').forEach((group) => {
-  group.addEventListener('click', (e) => {
-    const btn = e.target.closest('.emoji');
-    if (!btn) return;
-    const v = Number(btn.dataset.v);
-    const t = group.dataset.target;
-    selected[t] = v;
-    group.querySelectorAll('.emoji').forEach((el) => el.classList.toggle('selected', el === btn));
-    updateSubmitState();
-  });
+// Emotion selection logic (unified)
+let selectedEmotion = null;
+const emotionGroup = document.querySelector('.emotions');
+emotionGroup?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.emoji');
+  if (!btn) return;
+  selectedEmotion = Number(btn.dataset.v);
+  emotionGroup.querySelectorAll('.emoji').forEach((el) => el.classList.toggle('selected', el === btn));
+  updateSubmitState();
 });
 
 async function postJSON(url, data) {
@@ -50,7 +49,11 @@ async function postJSON(url, data) {
 }
 
 async function refresh(employeeId) {
-  if (!employeeId) return;
+  if (!employeeId) {
+    $('#summary').innerHTML = '';
+    $('#recent').innerHTML = '';
+    return;
+  }
   // summary
   const sumRes = await fetch(`/api/summary?employeeId=${encodeURIComponent(employeeId)}`);
   const sum = await sumRes.json();
@@ -86,16 +89,16 @@ function emoji(v){
 }
 
 function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+  return s.replace(/[&<"'\/]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 }
 
 async function handleSubmit(type){
   const employeeId = employeeIdInput.value.trim();
   if (!employeeId){ showToast('社員IDを入力してください'); return; }
-  const emotion = selected[type];
+  const emotion = selectedEmotion;
   if (!emotion){ showToast('感情アイコンを選択してください'); return; }
-  const note = $('#note-' + type).value.trim();
-  const dtVal = $('#dt-' + type)?.value;
+  const note = $('#note')?.value.trim() || '';
+  const dtVal = $('#dt')?.value;
   try{
     const btn = type === 'in' ? submitIn : submitOut;
     btn.disabled = true;
@@ -106,10 +109,10 @@ async function handleSubmit(type){
     }
     await postJSON('/api/clock', payload);
     showToast(`${type === 'in' ? '出勤' : '退勤'}を記録しました`);
-    $('#note-' + type).value = '';
-    if (dtVal) { $('#dt-' + type).value = ''; }
-    selected[type] = null;
-    document.querySelectorAll(`.emotions[data-target="${type}"] .emoji`).forEach(el => el.classList.remove('selected'));
+    const noteEl = $('#note'); if (noteEl) noteEl.value = '';
+    if (dtVal) { setNowToDt(); }
+    selectedEmotion = null;
+    emotionGroup?.querySelectorAll('.emoji').forEach(el => el.classList.remove('selected'));
     refresh(employeeId);
     renderCalendar();
   }catch(e){
@@ -126,8 +129,10 @@ submitOut.addEventListener('click', () => handleSubmit('out'));
 
 function updateSubmitState(){
   const id = employeeIdInput.value.trim();
-  submitIn.disabled = !id || !selected.in;
-  submitOut.disabled = !id || !selected.out;
+  const hasDt = !!(dtInput && dtInput.value);
+  const disabled = !id || !selectedEmotion || !hasDt;
+  if (submitIn) submitIn.disabled = disabled;
+  if (submitOut) submitOut.disabled = disabled;
 }
 
 employeeIdInput.addEventListener('input', () => {
@@ -137,11 +142,19 @@ employeeIdInput.addEventListener('input', () => {
   renderWave();
   renderTrends();
 });
+dtInput?.addEventListener('input', () => updateSubmitState());
 
-updateSubmitState();
-refresh(employeeIdInput.value.trim());
-renderWave();
-renderTrends();
+function setNowToDt(){
+  const el = dtInput || $('#dt');
+  if (!el) return;
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  el.value = `${y}-${m}-${day}T${hh}:${mm}`;
+}
 
 // ===== Calendar =====
 let currentMonth = new Date(); // today
@@ -152,11 +165,28 @@ function addMonths(d, n){ const x = new Date(d); x.setMonth(x.getMonth()+n); ret
 function ymd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function hhmm(dateLike){ const d = new Date(dateLike); const h = String(d.getHours()).padStart(2,'0'); const m = String(d.getMinutes()).padStart(2,'0'); return `${h}:${m}`; }
 
-async function fetchLogsForMonth(employeeId, date){
-  if (!employeeId) return [];
+async function fetchLogsForMonth(employeeId, departmentId, date){
   const from = startOfMonth(date).toISOString();
   const to = endOfMonth(date).toISOString();
-  const res = await fetch(`/api/logs?employeeId=${encodeURIComponent(employeeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  let url;
+  if (employeeId) {
+    url = `/api/logs?employeeId=${encodeURIComponent(employeeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  } else if (departmentId && departmentId !== 'all') {
+    url = `/api/logs/departments?departmentId=${encodeURIComponent(departmentId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  } else {
+    // All departments
+    const res = await fetch('/api/departments');
+    const json = await res.json();
+    if (!json.ok) return [];
+    const promises = json.departments.map(d => {
+      const u = `/api/logs/departments?departmentId=${d.id}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+      return fetch(u).then(r => r.json());
+    });
+    const results = await Promise.all(promises);
+    return results.flatMap(r => r.ok ? r.rows : []);
+  }
+
+  const res = await fetch(url);
   const json = await res.json();
   if (!json.ok) throw new Error(json.message || '取得に失敗しました');
   return json.rows;
@@ -164,6 +194,7 @@ async function fetchLogsForMonth(employeeId, date){
 
 async function renderCalendar(){
   const employeeId = employeeIdInput.value.trim();
+  const departmentId = departmentSelector.value;
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   calTitle.textContent = `${year}年 ${month+1}月`;
@@ -180,7 +211,7 @@ async function renderCalendar(){
   end.setDate(last.getDate() + (6 - last.getDay())); // end on Saturday
 
   let logs = [];
-  try { logs = await fetchLogsForMonth(employeeId, currentMonth); } catch(e){ console.error(e); }
+  try { logs = await fetchLogsForMonth(employeeId, departmentId, currentMonth); } catch(e){ console.error(e); }
   const byDay = new Map();
   for (const r of logs){
     const d = new Date(r.created_at);
@@ -217,8 +248,6 @@ async function renderCalendar(){
 calPrev.addEventListener('click', () => { currentMonth = addMonths(currentMonth, -1); renderCalendar(); });
 calNext.addEventListener('click', () => { currentMonth = addMonths(currentMonth, 1); renderCalendar(); });
 
-renderCalendar();
-
 // ===== Wave (emotion over time) =====
 let waveDays = 30;
 wave7?.addEventListener('click', ()=>{ waveDays = 7; setWaveButtons(); renderWave(); });
@@ -238,14 +267,34 @@ function endOfDay(d){ const x = new Date(d); x.setHours(23,59,59,999); return x;
 async function renderWave(){
   if (!waveCanvas) return;
   const employeeId = employeeIdInput.value.trim();
+  const departmentId = departmentSelector.value;
   const now = new Date();
   const from = startOfDay(new Date(now.getTime()- (waveDays-1)*86400000));
   const to = endOfDay(now);
   let rows = [];
   try{
-    const res = await fetch(`/api/logs?employeeId=${encodeURIComponent(employeeId)}&from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
-    const json = await res.json();
-    if (json.ok) rows = json.rows || [];
+    let url;
+    if (employeeId) {
+      url = `/api/logs?employeeId=${encodeURIComponent(employeeId)}&from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.ok) rows = json.rows || [];
+    } else if (departmentId && departmentId !== 'all') {
+      url = `/api/logs/departments?departmentId=${encodeURIComponent(departmentId)}&from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.ok) rows = json.rows || [];
+    } else {
+      const res = await fetch('/api/departments');
+      const json = await res.json();
+      if (!json.ok) return [];
+      const promises = json.departments.map(d => {
+        const u = `/api/logs/departments?departmentId=${d.id}&from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+        return fetch(u).then(r => r.json());
+      });
+      const results = await Promise.all(promises);
+      rows = results.flatMap(r => r.ok ? r.rows : []);
+    }
   }catch(e){ console.error(e); }
   drawWave(waveCanvas, rows, from, to);
 }
@@ -320,6 +369,11 @@ window.addEventListener('resize', ()=> renderWave());
 // ===== Trends (weekday / weekly) =====
 async function renderTrends(){
   const employeeId = employeeIdInput.value.trim();
+  if (!employeeId) {
+    weekdayTrendEl.innerHTML = '';
+    weeklyTrendEl.innerHTML = '';
+    return;
+  }
   const days = Number(trendDaysSel?.value || 30);
   let data = null;
   try{
@@ -378,3 +432,35 @@ function renderWeeklyTrend(rows){
     `;
   }).join('');
 }
+
+async function init() {
+  try {
+    const res = await fetch('/api/departments');
+    const json = await res.json();
+    if (json.ok) {
+      for (const dept of json.departments) {
+        const option = document.createElement('option');
+        option.value = dept.id;
+        option.textContent = dept.name;
+        departmentSelector.appendChild(option);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch departments', e);
+  }
+
+  departmentSelector.addEventListener('change', () => {
+    renderCalendar();
+    renderWave();
+  });
+
+  // Initial render
+  setNowToDt();
+  updateSubmitState();
+  refresh(employeeIdInput.value.trim());
+  renderCalendar();
+  renderWave();
+  renderTrends();
+}
+
+init();

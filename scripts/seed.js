@@ -1,17 +1,5 @@
 import { initDB } from '../src/db.js';
 
-function parseArgs(argv){
-  const args = { employee: 'E12345', days: 60, reset: false, start: null };
-  for (let i=2;i<argv.length;i++){
-    const a = argv[i];
-    if (a === '--employee' || a === '-e') args.employee = argv[++i];
-    else if (a === '--days' || a === '-d') args.days = Number(argv[++i] || 30);
-    else if (a === '--reset') args.reset = true;
-    else if (a === '--start' || a === '-s') args.start = argv[++i];
-  }
-  return args;
-}
-
 function rand(min, max){ return Math.random()*(max-min)+min; }
 function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
 
@@ -28,51 +16,59 @@ function randomEmotion(base=3){
 }
 
 async function main(){
-  const { employee, days, reset, start } = parseArgs(process.argv);
   const db = await initDB();
-  if (reset && db.resetAll) {
+
+  console.log('Resetting database...');
+  if (db.resetAll) {
     await db.resetAll();
   }
-  const today = start ? new Date(start) : new Date();
+
+  const departments = ['Engineering', 'Sales', 'Marketing', 'HR'];
+  const departmentIds = [];
+
+  console.log('Seeding departments...');
+  for (const name of departments) {
+    const { id } = await db.insertDepartment({ name });
+    departmentIds.push(id);
+  }
+
+  const employees = [];
+  console.log('Seeding employees...');
+  for (const departmentId of departmentIds) {
+    for (let i = 0; i < 10; i++) {
+      const { id } = await db.insertEmployee({ name: `User ${i + 1}`, departmentId });
+      employees.push({ id, departmentId });
+    }
+  }
+
+  console.log('Seeding emotion logs...');
+  const today = new Date();
   today.setHours(0,0,0,0);
-
   let count = 0;
-  for (let i = days - 1; i >= 0; i--){
-    const day = new Date(today);
-    day.setDate(today.getDate() - i);
 
-    // Create one clock-in and one clock-out with small randomness
-    const inHour = Math.round(rand(8.5, 10));
-    const inMin = Math.round(rand(0, 59));
-    const outHour = Math.round(rand(17.5, 19.5));
-    const outMin = Math.round(rand(0, 59));
+  for (const employee of employees) {
+    for (let i = 30 - 1; i >= 0; i--){
+      const day = new Date(today);
+      day.setDate(today.getDate() - i);
 
-    const inAt = atLocal(day, inHour, inMin);
-    const outAt = atLocal(day, outHour, outMin);
+      const inHour = Math.round(rand(8.5, 10));
+      const inMin = Math.round(rand(0, 59));
+      const outHour = Math.round(rand(17.5, 19.5));
+      const outMin = Math.round(rand(0, 59));
 
-    await db.insertEmotionLog({ employeeId: employee, type: 'in', emotion: randomEmotion(3.2), note: '', createdAt: inAt });
-    await db.insertEmotionLog({ employeeId: employee, type: 'out', emotion: randomEmotion(3.5), note: '', createdAt: outAt });
-    count += 2;
+      const inAt = atLocal(day, inHour, inMin);
+      const outAt = atLocal(day, outHour, outMin);
+
+      await db.insertEmotionLog({ employeeId: employee.id, type: 'in', emotion: randomEmotion(3.2), note: '', createdAt: inAt });
+      await db.insertEmotionLog({ employeeId: employee.id, type: 'out', emotion: randomEmotion(3.5), note: '', createdAt: outAt });
+      count += 2;
+    }
   }
 
-  // Also add a few recent extra events to show scatter
-  for (let j=0;j<6;j++){
-    const d = new Date(); d.setDate(d.getDate() - Math.round(rand(0, 6)));
-    const isIn = Math.random() < 0.5;
-    const h = isIn ? rand(8, 11) : rand(17, 20);
-    const m = rand(0, 59);
-    const at = atLocal(d, Math.floor(h), Math.floor(m));
-    await db.insertEmotionLog({ employeeId: employee, type: isIn ? 'in' : 'out', emotion: randomEmotion(3.2), note: 'sample', createdAt: at });
-    count++;
-  }
-
-  // eslint-disable-next-line no-console
-  console.log(`Seeded ${count} events for employee ${employee} over ${days} days.`);
+  console.log(`Seeded ${count} events for ${employees.length} employees in ${departments.length} departments over 30 days.`);
 }
 
 main().catch((e)=>{
-  // eslint-disable-next-line no-console
   console.error(e);
   process.exit(1);
 });
-

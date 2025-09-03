@@ -126,6 +126,40 @@ app.get('/api/logs', async (req, res) => {
   }
 });
 
+app.get('/api/departments', async (req, res) => {
+  try {
+    if (!db) db = await initDB();
+    const departments = await db.getDepartments();
+    res.json({ ok: true, departments });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'server_error', message: String(e?.message || e) });
+  }
+});
+
+const DepartmentLogsSchema = z.object({
+  departmentId: z.string().trim().min(1),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});
+
+app.get('/api/logs/departments', async (req, res) => {
+  try {
+    if (!db) db = await initDB();
+    const parsed = DepartmentLogsSchema.parse(req.query);
+    const rows = await db.getLogsRangeByDepartment({
+      departmentId: parsed.departmentId,
+      from: parsed.from,
+      to: parsed.to,
+    });
+    res.json({ ok: true, rows });
+  } catch (e) {
+    if (e?.issues) {
+      return res.status(400).json({ ok: false, error: 'validation_error', details: e.issues });
+    }
+    res.status(500).json({ ok: false, error: 'server_error', message: String(e?.message || e) });
+  }
+});
+
 const TrendsSchema = z.object({
   employeeId: z.string().trim().min(1).max(64),
   from: z.string().datetime().optional(),

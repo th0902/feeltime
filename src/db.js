@@ -19,15 +19,29 @@ function createId() {
 }
 
 const createTableSQL = `
+CREATE TABLE IF NOT EXISTS departments (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS employees (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  department_id TEXT NOT NULL,
+  FOREIGN KEY (department_id) REFERENCES departments(id)
+);
+
 CREATE TABLE IF NOT EXISTS emotion_logs (
   id TEXT PRIMARY KEY,
   employee_id TEXT NOT NULL,
   event_type TEXT NOT NULL CHECK (event_type IN ('in','out')),
   emotion INTEGER NOT NULL CHECK (emotion BETWEEN 1 AND 5),
   note TEXT,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
 );
 CREATE INDEX IF NOT EXISTS idx_emotion_logs_employee_created ON emotion_logs(employee_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_employees_department ON employees(department_id);
 `;
 
 export async function initDB() {
@@ -65,6 +79,21 @@ function sqliteAdapter(db) {
     ' FROM emotion_logs WHERE employee_id = ?'
   );
   return {
+    async resetAll() {
+      db.exec('DELETE FROM emotion_logs');
+      db.exec('DELETE FROM employees');
+      db.exec('DELETE FROM departments');
+    },
+    async insertDepartment({ id, name }) {
+      const createdId = createId();
+      db.prepare('INSERT INTO departments (id, name) VALUES (?, ?)').run(createdId, name);
+      return { id: createdId };
+    },
+    async insertEmployee({ id, name, departmentId }) {
+      const createdId = createId();
+      db.prepare('INSERT INTO employees (id, name, department_id) VALUES (?, ?, ?)').run(createdId, name, departmentId);
+      return { id: createdId };
+    },
     async health() {
       db.pragma('quick_check');
       return { ok: true };
@@ -102,6 +131,18 @@ function sqliteAdapter(db) {
       if (from) { sql += ' AND created_at >= ?'; params.push(from); }
       if (to) { sql += ' AND created_at <= ?'; params.push(to); }
       sql += ' ORDER BY created_at ASC';
+      const rows = db.prepare(sql).all(...params);
+      return rows.map(r => ({ ...r, emotion: Number(r.emotion) }));
+    },
+    async getDepartments() {
+      return db.prepare('SELECT id, name FROM departments ORDER BY name').all();
+    },
+    async getLogsRangeByDepartment({ departmentId, from, to }) {
+      let sql = 'SELECT l.id, l.employee_id, l.event_type, l.emotion, l.note, l.created_at FROM emotion_logs l JOIN employees e ON l.employee_id = e.id WHERE e.department_id = ?';
+      const params = [departmentId];
+      if (from) { sql += ' AND l.created_at >= ?'; params.push(from); }
+      if (to) { sql += ' AND l.created_at <= ?'; params.push(to); }
+      sql += ' ORDER BY l.created_at ASC';
       const rows = db.prepare(sql).all(...params);
       return rows.map(r => ({ ...r, emotion: Number(r.emotion) }));
     },
@@ -149,6 +190,19 @@ function sqliteAdapter(db) {
 
 function postgresAdapter(pool) {
   return {
+    async resetAll() {
+      await pool.query('TRUNCATE TABLE emotion_logs, employees, departments RESTART IDENTITY');
+    },
+    async insertDepartment({ name }) {
+      const id = createId();
+      await pool.query('INSERT INTO departments (id, name) VALUES ($1, $2)', [id, name]);
+      return { id };
+    },
+    async insertEmployee({ name, departmentId }) {
+      const id = createId();
+      await pool.query('INSERT INTO employees (id, name, department_id) VALUES ($1, $2, $3)', [id, name, departmentId]);
+      return { id };
+    },
     async health() {
       await pool.query('SELECT 1');
       return { ok: true };
@@ -191,11 +245,24 @@ function postgresAdapter(pool) {
       const { rows } = await pool.query(sql, params);
       return rows.map(r => ({ ...r, emotion: Number(r.emotion) }));
     },
+    async getDepartments() {
+      const { rows } = await pool.query('SELECT id, name FROM departments ORDER BY name');
+      return rows;
+    },
+    async getLogsRangeByDepartment({ departmentId, from, to }) {
+      const params = [departmentId];
+      let sql = 'SELECT l.id, l.employee_id, l.event_type, l.emotion, l.note, l.created_at FROM emotion_logs l JOIN employees e ON l.employee_id = e.id WHERE e.department_id = $1';
+      if (from) { params.push(from); sql += ` AND l.created_at >= $${params.length}`; }
+      if (to) { params.push(to); sql += ` AND l.created_at <= $${params.length}`; }
+      sql += ' ORDER BY l.created_at ASC';
+      const { rows } = await pool.query(sql, params);
+      return rows.map(r => ({ ...r, emotion: Number(r.emotion) }));
+    },
     async getTrends({ employeeId, from, to }) {
       const params = [employeeId];
       let where = 'WHERE employee_id = $1';
       if (from) { params.push(from); where += ` AND created_at >= $${params.length}`; }
-      if (to) { params.push(to); where += ` AND created_at <= $${params.length}`; }
+      if (to) { where += ` AND created_at <= $${params.length}`; }
 
       const weekdaySql = `
         SELECT EXTRACT(DOW FROM created_at)::int AS dow, event_type, COUNT(*) AS cnt, AVG(emotion) AS avg

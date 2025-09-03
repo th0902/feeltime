@@ -22,43 +22,36 @@
         <small class="muted">ローカル保存されます</small>
       </section>
 
-      <div class="grid">
-        <section class="panel md-card">
-          <h2>出勤（Clock In）</h2>
-          <div class="emotions" data-target="in">
-            <button class="emoji" data-v="1" aria-label="とても悪い">😡</button>
-            <button class="emoji" data-v="2" aria-label="悪い">😟</button>
-            <button class="emoji" data-v="3" aria-label="ふつう">😐</button>
-            <button class="emoji" data-v="4" aria-label="良い">🙂</button>
-            <button class="emoji" data-v="5" aria-label="とても良い">😄</button>
-          </div>
-          <textarea id="note-in" class="md-input" rows="3" placeholder="ひとことメモ（任意）"></textarea>
-          <label for="dt-in" class="muted" style="margin-top:8px;display:block">日時（任意）</label>
-          <input id="dt-in" class="md-input" type="datetime-local" />
+      <section class="panel md-card">
+        <label for="department-selector">部署</label>
+        <select id="department-selector" class="md-input">
+          <option value="all" selected>すべて</option>
+        </select>
+      </section>
+
+      <section class="panel md-card">
+        <h2>打刻</h2>
+        <div class="emotions" data-target="both">
+          <button class="emoji" data-v="1" aria-label="とても悪い">😡</button>
+          <button class="emoji" data-v="2" aria-label="悪い">😟</button>
+          <button class="emoji" data-v="3" aria-label="ふつう">😐</button>
+          <button class="emoji" data-v="4" aria-label="良い">🙂</button>
+          <button class="emoji" data-v="5" aria-label="とても良い">😄</button>
+        </div>
+        <textarea id="note" class="md-input" rows="3" placeholder="ひとことメモ（任意）"></textarea>
+        <label for="dt" class="muted" style="margin-top:8px;display:block">日時（必須）</label>
+        <input id="dt" class="md-input" type="datetime-local" required />
+        <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
           <button id="submit-in" class="btn btn--filled" disabled>
             <span class="material-symbols-outlined">check_circle</span>
             出勤を記録
           </button>
-        </section>
-
-        <section class="panel md-card">
-          <h2>退勤（Clock Out）</h2>
-          <div class="emotions" data-target="out">
-            <button class="emoji" data-v="1" aria-label="とても悪い">😡</button>
-            <button class="emoji" data-v="2" aria-label="悪い">😟</button>
-            <button class="emoji" data-v="3" aria-label="ふつう">😐</button>
-            <button class="emoji" data-v="4" aria-label="良い">🙂</button>
-            <button class="emoji" data-v="5" aria-label="とても良い">😄</button>
-          </div>
-          <textarea id="note-out" class="md-input" rows="3" placeholder="ひとことメモ（任意）"></textarea>
-          <label for="dt-out" class="muted" style="margin-top:8px;display:block">日時（任意）</label>
-          <input id="dt-out" class="md-input" type="datetime-local" />
           <button id="submit-out" class="btn btn--filled" disabled>
             <span class="material-symbols-outlined">check_circle</span>
             退勤を記録
           </button>
-        </section>
-      </div>
+        </div>
+      </section>
 
       <section class="panel md-card">
         <h2>最近の記録</h2>
