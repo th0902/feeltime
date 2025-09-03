@@ -10,7 +10,8 @@
     "dev": "NODE_ENV=development nodemon src/server.js",
     "start": "node src/server.js",
     "lint": "echo 'No linter configured'",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "seed:once": "node scripts/seed-once.js"
   },
   "dependencies": {
     "express": "^4.19.2",
