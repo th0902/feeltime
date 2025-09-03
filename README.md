@@ -26,6 +26,9 @@
 - `DATABASE_URL` を `postgres://` で始まる接続文字列に設定すると PostgreSQL を使用します（例: Cloud SQL）。
 - `SQLITE_PATH` で SQLite のパスを上書きできます（ローカル開発向け）。
 - `PORT`（省略可、デフォルト 8080）
+ - `STORAGE_BACKEND` に `gcs` を指定すると、DBなしで Google Cloud Storage に保存します。
+ - `GCS_BUCKET`（必須: `STORAGE_BACKEND=gcs` のとき）保存先バケット名。
+ - `GCS_PREFIX`（任意）バケット内の保存プレフィックス。デフォルト `feeltime`
 
 ## デプロイ（Cloud Run）
 前提: GCP プロジェクトと gcloud CLI を設定済み。本番DBは Cloud SQL for PostgreSQL を想定します。
@@ -77,6 +80,27 @@ gcloud run jobs execute feeltime-seed --region asia-northeast1 --wait
 - `scripts/seed-once.js` は既に部門が存在する場合は何もしません（非破壊）。
 - `scripts/seed.js` はリセット（TRUNCATE/DELETE）して再投入するため、本番では使用しないでください。
 - PostgreSQL を指定すると、アプリ起動時に必要なテーブルは自動作成されます。
+
+### DBなし運用（Cloud Storage への保存）
+DB セットアップが面倒な場合の簡易運用モードです。Cloud Storage に JSON ファイルとして保存します。
+
+- 使い方（Cloud Run）
+  - サービス/ジョブで以下を設定
+    - `STORAGE_BACKEND=gcs`
+    - `GCS_BUCKET=your-bucket`
+    - `GCS_PREFIX=feeltime`（任意）
+  - サービスアカウントに最低 `roles/storage.objectAdmin`（またはより限定的な権限）を付与
+
+- 仕組み
+  - 部門/社員は `departments.json` / `employees.json`
+  - 感情ログは `events/<イベントID>.json` として 1 イベント = 1 オブジェクトで保存
+  - 集計系APIは GCS からイベントを読み出してアプリ側で計算（小規模前提）
+
+- 注意点
+  - 同時書き込みが多い大規模用途や高度なクエリには不向きです（DB推奨）
+  - 料金・パフォーマンス最適化のため、データ量が増えたら Cloud SQL/Firestore 等への移行を検討してください
+
+初期データ投入は前述の Cloud Run Job（`scripts/seed-once.js`）がそのまま使えます。`STORAGE_BACKEND=gcs` と GCS 関連の環境変数を設定すれば、Cloud SQL なしで GCS に初期データが作られます。
 
 ## API 仕様（概要）
 ### POST /api/clock
